@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kredi Risk Simülatörü</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:         #111214;
+    --surface:    #1a1c1f;
+    --surface2:   #222428;
+    --border:     #2e3035;
+    --accent:     #2563eb;
+    --accent-bg:  #1a2847;
+    --text:       #e8eaed;
+    --muted:      #8b9099;
+    --danger:     #ef4444;
+    --warn:       #f59e0b;
+    --good:       #22c55e;
+    --radius:     10px;
+    --font:       'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo-dot {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+  header h1 { font-size: 14px; font-weight: 600; letter-spacing: .03em; color: var(--text); }
+  header span { font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .badge {
+    margin-left: auto;
+    font-size: 11px; font-weight: 500;
+    background: #1a2535;
+    color: #60a5fa;
+    border: 1px solid #2563eb44;
+    border-radius: 20px;
+    padding: 3px 10px;
+  }
+
+  /* ── Layout ── */
+  .shell {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 53px);
+  }
+
+  /* ── Left panel (inputs) ── */
+  .panel-left {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px 22px;
+    overflow-y: auto;
+  }
+  .panel-left h2 {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+
+  .form-group { margin-bottom: 16px; }
+  .form-group label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 7px;
+  }
+  .form-group label strong {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    background: var(--accent);
+    border-radius: 50%;
+    border: 2px solid #1a1c1f;
+    transition: transform .15s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+  input[type=number], select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 14px;
+    font-family: var(--font);
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color .15s;
+    -webkit-appearance: none;
+  }
+  input[type=number]:focus, select:focus {
+    border-color: var(--accent);
+  }
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%238b9099' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+    cursor: pointer;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  /* ── Right panel (results) ── */
+  .panel-right {
+    padding: 24px 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .panel-right h2 {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  /* ── KPI cards ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi.highlight {
+    background: var(--accent-bg);
+    border-color: #2563eb66;
+  }
+  .kpi-label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+  .kpi.highlight .kpi-label { color: #93c5fd; }
+  .kpi-value {
+    font-size: 28px;
+    font-weight: 500;
+    letter-spacing: -.02em;
+    line-height: 1;
+  }
+  .kpi.highlight .kpi-value { color: #60a5fa; }
+  .kpi-sub {
+    font-size: 11px;
+    margin-top: 6px;
+  }
+
+  /* Risk badge on kpi */
+  .risk-pill {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 20px;
+    padding: 2px 9px;
+    margin-top: 8px;
+  }
+  .risk-low    { background: #14532d44; color: var(--good); border: 1px solid #22c55e44; }
+  .risk-medium { background: #78350f44; color: var(--warn); border: 1px solid #f59e0b44; }
+  .risk-high   { background: #450a0a44; color: var(--danger); border: 1px solid #ef444444; }
+
+  /* ── Formula display ── */
+  .formula-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .formula-bar .f-val {
+    color: var(--text);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .formula-bar .f-op { color: #4b5563; }
+
+  /* ── Gauge ── */
+  .gauge-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .gauge-label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+  .gauge-bar-bg {
+    height: 8px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+  .gauge-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .4s ease, background .4s ease;
+  }
+  .gauge-ticks {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* ── Factor table ── */
+  .factor-list {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .factor-header {
+    display: grid;
+    grid-template-columns: 1fr 90px 80px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+  .factor-row {
+    display: grid;
+    grid-template-columns: 1fr 90px 80px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    align-items: center;
+  }
+  .factor-row:last-child { border-bottom: none; }
+  .factor-name { color: var(--text); }
+  .factor-value { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .factor-impact { text-align: right; font-weight: 600; }
+  .impact-up   { color: var(--danger); }
+  .impact-down { color: var(--good); }
+  .impact-neutral { color: var(--muted); }
+
+  /* ── Footer note ── */
+  .disclaimer {
+    font-size: 11px;
+    color: #4b5563;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; }
+    .panel-left { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-dot"></div>
+  <h1>Kredi Risk Simülatörü <span>/ v1 demo</span></h1>
+  <div class="badge">PD · LGD · EAD · EL</div>
+</header>
+
+<div class="shell">
+
+  <!-- ───── LEFT: inputs ───── -->
+  <div class="panel-left">
+    <h2>Başvuru Profili</h2>
+
+    <div class="form-group">
+      <label>Findeks / KKB skoru <strong id="lbl-findeks">1440</strong></label>
+      <input type="range" id="findeks" min="300" max="1900" step="10" value="1440" />
+    </div>
+
+    <div class="form-group">
+      <label>Peşinat oranı <strong id="lbl-down">38%</strong></label>
+      <input type="range" id="downpay" min="5" max="75" step="1" value="38" />
+    </div>
+
+    <hr class="divider" />
+
+    <div class="grid-2 form-group">
+      <div>
+        <label>Aylık gelir (TL)</label>
+        <input type="number" id="income" value="45000" step="1000" min="5000" />
+      </div>
+      <div>
+        <label>Araç bedeli (TL)</label>
+        <input type="number" id="loanamt" value="150000" step="5000" min="10000" />
+      </div>
+    </div>
+
+    <div class="grid-2 form-group">
+      <div>
+        <label>Vade (ay)</label>
+        <select id="term">
+          <option value="12">12 ay</option>
+          <option value="24">24 ay</option>
+          <option value="36">36 ay</option>
+          <option value="48" selected>48 ay</option>
+          <option value="60">60 ay</option>
+        </select>
+      </div>
+      <div>
+        <label>Mevcut kredi sayısı</label>
+        <input type="number" id="existingloans" value="2" min="0" max="10" step="1" />
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <div class="grid-2 form-group">
+      <div>
+        <label>Çalışma durumu</label>
+        <select id="employment">
+          <option value="Ücretli (SGK'lı)">Ücretli (SGK'lı)</option>
+          <option value="Serbest Meslek">Serbest meslek</option>
+          <option value="Esnaf/KOBİ" selected>Esnaf / KOBİ</option>
+          <option value="Emekli">Emekli</option>
+        </select>
+      </div>
+      <div>
+        <label>Bölge</label>
+        <select id="region">
+          <option value="Marmara" selected>Marmara</option>
+          <option value="Ege">Ege</option>
+          <option value="İç Anadolu">İç Anadolu</option>
+          <option value="Akdeniz">Akdeniz</option>
+          <option value="Karadeniz">Karadeniz</option>
+          <option value="Doğu Anadolu">Doğu Anadolu</option>
+          <option value="Güneydoğu Anadolu">Güneydoğu Anadolu</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid-3 form-group">
+      <div>
+        <label>Araç segmenti</label>
+        <select id="segment">
+          <option value="Binek - Ekonomi">Binek ekonomi</option>
+          <option value="Binek - Orta">Binek orta</option>
+          <option value="SUV" selected>SUV</option>
+          <option value="Hafif Ticari">Hafif ticari</option>
+        </select>
+      </div>
+      <div>
+        <label>Marka kademesi</label>
+        <select id="brand">
+          <option value="Yerli">Yerli</option>
+          <option value="İthal - Ekonomik">İthal ekonomik</option>
+          <option value="İthal - Premium" selected>İthal premium</option>
+        </select>
+      </div>
+      <div>
+        <label>Araç durumu</label>
+        <select id="used">
+          <option value="0">Sıfır</option>
+          <option value="1" selected>2. el</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Müşteri yaşı <strong id="lbl-age">36</strong></label>
+      <input type="range" id="age" min="19" max="75" step="1" value="36" />
+    </div>
+
+  </div>
+
+  <!-- ───── RIGHT: results ───── -->
+  <div class="panel-right">
+    <div>
+      <h2>Risk Özeti</h2>
+
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">PD &middot; temerrüt olasılığı</div>
+          <div class="kpi-value" id="out-pd">—</div>
+          <div id="out-pd-pill"></div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">LGD &middot; temerrütte kayıp oranı</div>
+          <div class="kpi-value" id="out-lgd">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">EAD &middot; temerrüt anı risk tutarı</div>
+          <div class="kpi-value" id="out-ead">—</div>
+        </div>
+        <div class="kpi highlight">
+          <div class="kpi-label">Beklenen zarar (EL = PD × LGD × EAD)</div>
+          <div class="kpi-value" id="out-el">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formula bar -->
+    <div class="formula-bar">
+      <span>EL</span>
+      <span class="f-op">=</span>
+      <span class="f-val" id="f-pd">—</span>
+      <span class="f-op">×</span>
+      <span class="f-val" id="f-lgd">—</span>
+      <span class="f-op">×</span>
+      <span class="f-val" id="f-ead">—</span>
+      <span class="f-op">=</span>
+      <span class="f-val" id="f-el">—</span>
+    </div>
+
+    <!-- PD Gauge -->
+    <div class="gauge-wrap">
+      <div class="gauge-label">PD risk göstergesi</div>
+      <div class="gauge-bar-bg">
+        <div class="gauge-bar-fill" id="gauge-fill" style="width:0%;background:var(--good)"></div>
+      </div>
+      <div class="gauge-ticks">
+        <span>Düşük risk</span>
+        <span>Orta</span>
+        <span>Yüksek risk</span>
+      </div>
+    </div>
+
+    <!-- Factor breakdown -->
+    <div>
+      <div class="factor-list">
+        <div class="factor-header">
+          <span>Risk faktörü</span>
+          <span>Değer</span>
+          <span style="text-align:right">Etki</span>
+        </div>
+        <div class="factor-row">
+          <span class="factor-name">Findeks / KKB skoru</span>
+          <span class="factor-value" id="f-row-findeks">—</span>
+          <span class="factor-impact" id="fi-findeks">—</span>
+        </div>
+        <div class="factor-row">
+          <span class="factor-name">Taksit / gelir oranı</span>
+          <span class="factor-value" id="f-row-dti">—</span>
+          <span class="factor-impact" id="fi-dti">—</span>
+        </div>
+        <div class="factor-row">
+          <span class="factor-name">Peşinat oranı</span>
+          <span class="factor-value" id="f-row-down">—</span>
+          <span class="factor-impact" id="fi-down">—</span>
+        </div>
+        <div class="factor-row">
+          <span class="factor-name">Çalışma tipi</span>
+          <span class="factor-value" id="f-row-emp">—</span>
+          <span class="factor-impact" id="fi-emp">—</span>
+        </div>
+        <div class="factor-row">
+          <span class="factor-name">Bölge</span>
+          <span class="factor-value" id="f-row-region">—</span>
+          <span class="factor-impact" id="fi-region">—</span>
+        </div>
+        <div class="factor-row">
+          <span class="factor-name">Araç / marka tipi</span>
+          <span class="factor-value" id="f-row-vehicle">—</span>
+          <span class="factor-impact" id="fi-vehicle">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      Sentetik veriyle eğitilmiş demo modelidir. Sonuçlar gösterim amaçlıdır, gerçek kredi kararı için kullanılmamalıdır.
+    </div>
+  </div>
+
+</div>
+
+<script>
+const MODEL = {
+  intercept: 4.12,
+  coefs: {
+    findeks_score:           -0.003367,
+    installment_to_income:    2.4080,
+    down_payment_ratio:      -1.5789,
+    existing_loan_count:      0.3141,
+    customer_age:            -0.001424,
+    "employment_type_Esnaf/KOBİ":       0.5589,
+    "employment_type_Serbest Meslek":   0.1793,
+    "employment_type_Ücretli (SGK'lı)": 0.0279,
+    "vehicle_segment_Binek - Orta":     0.0141,
+    "vehicle_segment_Hafif Ticari":    -0.2185,
+    "vehicle_segment_SUV":              0.0762,
+    "brand_tier_İthal - Ekonomik":      0.1732,
+    "brand_tier_İthal - Premium":       0.2378,
+    "region_Doğu Anadolu":              0.3708,
+    "region_Ege":                      -0.1286,
+    "region_Güneydoğu Anadolu":         0.2582,
+    "region_Karadeniz":                -0.0410,
+    "region_Marmara":                   0.1177,
+    "region_İç Anadolu":                0.1719,
+  },
+  segLgd: {
+    "Yerli|0":            0.2945,
+    "Yerli|1":            0.2936,
+    "İthal - Ekonomik|0": 0.3404,
+    "İthal - Ekonomik|1": 0.3784,
+    "İthal - Premium|0":  0.3713,
+    "İthal - Premium|1":  0.3808,
+  },
+  avgLgd: 0.3337,
+  avgCcf: 0.6292,
+};
+
+function fmt(n) {
+  return new Intl.NumberFormat('tr-TR', {maximumFractionDigits: 0}).format(Math.round(n)) + ' TL';
+}
+function pct(n, dec=1) { return (n*100).toFixed(dec) + '%'; }
+
+function impactLabel(coef, val) {
+  const contrib = coef * val;
+  if (Math.abs(contrib) < 0.05) return ['—', 'impact-neutral'];
+  if (contrib > 0) return ['▲ Artırıyor', 'impact-up'];
+  return ['▼ Azaltıyor', 'impact-down'];
+}
+
+function compute() {
+  const findeks     = +document.getElementById('findeks').value;
+  const downpayPct  = +document.getElementById('downpay').value;
+  const downpay     = downpayPct / 100;
+  const income      = +document.getElementById('income').value || 1;
+  const loanAmt     = +document.getElementById('loanamt').value || 0;
+  const term        = +document.getElementById('term').value;
+  const existing    = +document.getElementById('existingloans').value;
+  const employment  = document.getElementById('employment').value;
+  const region      = document.getElementById('region').value;
+  const segment     = document.getElementById('segment').value;
+  const brand       = document.getElementById('brand').value;
+  const used        = document.getElementById('used').value;
+  const age         = +document.getElementById('age').value;
+
+  document.getElementById('lbl-findeks').textContent = findeks;
+  document.getElementById('lbl-down').textContent = downpayPct + '%';
+  document.getElementById('lbl-age').textContent = age;
+
+  const financed           = loanAmt * (1 - downpay);
+  const monthlyInstallment = (financed * 1.12) / term;
+  const dti                = monthlyInstallment / income;
+
+  // Logit
+  let logit = MODEL.intercept;
+  logit += MODEL.coefs.findeks_score * findeks;
+  logit += MODEL.coefs.installment_to_income * dti;
+  logit += MODEL.coefs.down_payment_ratio * downpay;
+  logit += MODEL.coefs.existing_loan_count * existing;
+  logit += MODEL.coefs.customer_age * age;
+
+  const empKey = 'employment_type_' + employment;
+  const empC = MODEL.coefs[empKey] || 0;
+  logit += empC;
+
+  const segKey = 'vehicle_segment_' + segment;
+  const segC = MODEL.coefs[segKey] || 0;
+  logit += segC;
+
+  const brandKey = 'brand_tier_' + brand;
+  const brandC = MODEL.coefs[brandKey] || 0;
+  logit += brandC;
+
+  const regionKey = 'region_' + region;
+  const regionC = MODEL.coefs[regionKey] || 0;
+  logit += regionC;
+
+  const pd  = 1 / (1 + Math.exp(-logit));
+  const lgd = MODEL.segLgd[brand + '|' + used] ?? MODEL.avgLgd;
+  const ead = financed * MODEL.avgCcf;
+  const el  = pd * lgd * ead;
+
+  // KPIs
+  document.getElementById('out-pd').textContent  = pct(pd);
+  document.getElementById('out-lgd').textContent = pct(lgd);
+  document.getElementById('out-ead').textContent = fmt(ead);
+  document.getElementById('out-el').textContent  = fmt(el);
+
+  // Risk pill
+  let pillClass, pillText;
+  if (pd < 0.25)      { pillClass = 'risk-low';    pillText = 'Düşük risk'; }
+  else if (pd < 0.55) { pillClass = 'risk-medium'; pillText = 'Orta risk'; }
+  else                 { pillClass = 'risk-high';   pillText = 'Yüksek risk'; }
+  document.getElementById('out-pd-pill').innerHTML =
+    `<span class="risk-pill ${pillClass}">${pillText}</span>`;
+
+  // Formula bar
+  document.getElementById('f-pd').textContent  = pct(pd);
+  document.getElementById('f-lgd').textContent = pct(lgd);
+  document.getElementById('f-ead').textContent = fmt(ead);
+  document.getElementById('f-el').textContent  = fmt(el);
+
+  // Gauge
+  const fill = document.getElementById('gauge-fill');
+  fill.style.width = Math.min(pd * 100, 100) + '%';
+  fill.style.background = pd < 0.25 ? 'var(--good)' : pd < 0.55 ? 'var(--warn)' : 'var(--danger)';
+
+  // Factor table
+  document.getElementById('f-row-findeks').textContent = findeks;
+  const [fiF, fiFC] = impactLabel(MODEL.coefs.findeks_score, findeks);
+  document.getElementById('fi-findeks').textContent  = fiF;
+  document.getElementById('fi-findeks').className    = 'factor-impact ' + fiFC;
+
+  document.getElementById('f-row-dti').textContent = pct(dti, 1);
+  const [fiD, fiDC] = impactLabel(MODEL.coefs.installment_to_income, dti);
+  document.getElementById('fi-dti').textContent  = fiD;
+  document.getElementById('fi-dti').className    = 'factor-impact ' + fiDC;
+
+  document.getElementById('f-row-down').textContent = pct(downpay);
+  const [fiDP, fiDPC] = impactLabel(MODEL.coefs.down_payment_ratio, downpay);
+  document.getElementById('fi-down').textContent  = fiDP;
+  document.getElementById('fi-down').className    = 'factor-impact ' + fiDPC;
+
+  document.getElementById('f-row-emp').textContent = employment;
+  const [fiE, fiEC] = impactLabel(1, empC);
+  document.getElementById('fi-emp').textContent  = fiE;
+  document.getElementById('fi-emp').className    = 'factor-impact ' + fiEC;
+
+  document.getElementById('f-row-region').textContent = region;
+  const [fiR, fiRC] = impactLabel(1, regionC);
+  document.getElementById('fi-region').textContent  = fiR;
+  document.getElementById('fi-region').className    = 'factor-impact ' + fiRC;
+
+  document.getElementById('f-row-vehicle').textContent = segment + ' · ' + brand;
+  const vehicleC = segC + brandC;
+  const [fiV, fiVC] = impactLabel(1, vehicleC);
+  document.getElementById('fi-vehicle').textContent  = fiV;
+  document.getElementById('fi-vehicle').className    = 'factor-impact ' + fiVC;
+}
+
+['findeks','downpay','income','loanamt','term','existingloans',
+ 'employment','region','segment','brand','used','age']
+  .forEach(id => document.getElementById(id).addEventListener('input', compute));
+
+compute();
+</script>
+</body>
+</html>
